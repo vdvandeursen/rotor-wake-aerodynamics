@@ -51,7 +51,7 @@ plt.xlabel('a')
 plt.ylabel(r'$C_T$ and $C_P$')
 plt.grid()
 plt.legend()
-plt.show()
+# plt.show()
 
 def PrandtlTipRootCorrection(r_R, rootradius_R, tipradius_R, TSR, NBlades, axial_induction):
     """
@@ -78,7 +78,7 @@ plt.plot(r_R, Prandtltip, 'g.', label='Prandtl tip')
 plt.plot(r_R, Prandtlroot, 'b.', label='Prandtl root')
 plt.xlabel('r/R')
 plt.legend()
-plt.show()
+# plt.show()
 
 # plot Prandtl tip, root and combined correction for a number of blades and induction 'a', over the non-dimensioned radius
 r_R = np.arange(0.2, 1, .01)
@@ -92,7 +92,7 @@ plt.plot(r_R, Prandtltip, 'g.', label='Prandtl tip')
 plt.plot(r_R, Prandtlroot, 'b.', label='Prandtl root')
 plt.xlabel('r/R')
 plt.legend()
-plt.show()
+# plt.show()
 
 # plot Prandtl tip, root and combined correction for a number of blades and induction 'a', over the non-dimensioned radius
 r_R = np.arange(0.2, 1, .01)
@@ -106,7 +106,7 @@ plt.plot(r_R, Prandtltip, 'g.', label='Prandtl tip')
 plt.plot(r_R, Prandtlroot, 'b.', label='Prandtl root')
 plt.xlabel('r/R')
 plt.legend()
-plt.show()
+# plt.show()
 
 # import polar
 
@@ -131,7 +131,7 @@ axs[1].plot(polar_cd, polar_cl)
 axs[1].set_xlim([0,.1])
 axs[1].set_xlabel(r'$C_d$')
 axs[1].grid()
-plt.show()
+# plt.show()
 
 # define function to determine load in the blade element
 def loadBladeElement(vnorm, vtan, r_R, chord, twist, polar_alpha, polar_cl, polar_cd):
