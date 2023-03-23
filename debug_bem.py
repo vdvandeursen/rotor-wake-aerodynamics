@@ -60,13 +60,10 @@ def debug_cl_cd(blade_element_model):
 
     plt.show()
 
+
 if __name__ == '__main__':
     col_names = ['angle_of_attack', 'lift_coefficient', 'drag_coefficient', 'moment_coefficient']
     airfoil = pd.read_csv('DU95W180.csv', names=col_names)
-
-    inflow_speed = 10
-    tip_speed_ratios = [6, 8, 10]
-    yaw_angles = [0, 15, 30]
 
     def twist_function(r, blade_span): return 14*(1-r/blade_span)
     def chord_function(r, blade_span): return 3*(1-r/blade_span)+1
@@ -74,11 +71,18 @@ if __name__ == '__main__':
     blade_element_model = BladeElementModel(
         blade_span=50,
         blade_start=0.2*50,
-        blade_pitch=-2,
+        blade_pitch=2,
         blade_number=3,
         twist=twist_function,
         chord=chord_function,
         airfoil_data=airfoil
+    )
+
+    res = blade_element_model.run_performance_calculations(
+        free_stream_velocity=10,
+        tip_speed_ratio=8,
+        rotor_yaw=0,
+        air_density=1
     )
 
     # debug_induction_factor_thrust_coefficient(blade_element_model)

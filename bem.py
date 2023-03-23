@@ -4,14 +4,7 @@ import numpy.typing as npt
 import matplotlib.pyplot as plt
 from typing import Union, Callable
 
-number_of_annuli = 500
-
-
-# class FlowCase:
-#     def __init__(self, free_stream_velocity, yaw_angle, tip_speed_ratio):
-#         self.free_stream_velocity = free_stream_velocity
-#         self.yaw_angle = yaw_angle
-#         self.tip_speed_ratio = tip_speed_ratio
+number_of_annuli = 200
 
 
 class BladeElementModel:
@@ -79,7 +72,7 @@ class BladeElementModel:
                                      rotor_yaw: float,
                                      air_density: float = 1.225,
                                      show_plots=False,
-                                     save_plots_dir: str = None) -> tuple:
+                                     save_plots_dir: str = None) -> dict:
         """
         Perform BEM calculations with given inflow conditions.
 
@@ -89,8 +82,6 @@ class BladeElementModel:
         :param rotor_yaw: rotor yaw [deg]
         :param show_plots: display performance plots
         :param save_plots_dir: if specified, saves performance plots in this directory
-
-        :returns power_coefficient, thrust_coefficient
         """
 
         self.free_stream_velocity = free_stream_velocity
@@ -126,7 +117,7 @@ class BladeElementModel:
         if show_plots:
             plt.show()
 
-        return rotor_thrust_coefficient, rotor_power_coefficient
+        return {'thrust_coefficient': rotor_thrust_coefficient, 'power_coefficient': rotor_power_coefficient}
 
     def _solve_stream_tube_for_blade_element(self, section_start, twist, chord):
         """
@@ -142,7 +133,7 @@ class BladeElementModel:
         axial_induction_factor = 0  # axial induction
         tangential_induction_factor = 0  # tangential induction factor
 
-        error_threshold = 0.0001  # error limit for iteration pocess, in absolute value of induction
+        error_threshold = 0.0001  # error limit for iteration process, in absolute value of induction
         iteration_error = np.inf
         iteration_limit = 10e3
 
@@ -176,9 +167,6 @@ class BladeElementModel:
                 location=section_start + self.section_thickness * 0.5,  # calculate correction @ section midpoint
                 axial_induction=axial_induction_factor_update
             )
-
-            if prandtl_correction < 0.0001:
-                prandtl_correction = 0.0001
 
             axial_induction_factor_update = axial_induction_factor_update / prandtl_correction
 
@@ -265,7 +253,15 @@ class BladeElementModel:
             np.exp(-np.pi * ((location - self.blade_start) / self.blade_span) / d)
         )
 
+        if np.isnan(tip_correction):
+            tip_correction = 0
+        if np.isnan(root_correction):
+            root_correction = 0
+
         prandtl_correction = tip_correction * root_correction
+
+        if prandtl_correction < 0.0001:
+            prandtl_correction = 0.0001
 
         if return_all:
             return prandtl_correction, tip_correction, root_correction
