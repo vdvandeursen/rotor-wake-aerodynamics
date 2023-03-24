@@ -71,6 +71,7 @@ class BladeElementModel:
                                      tip_speed_ratio: float,
                                      rotor_yaw: float,
                                      air_density: float = 1.225,
+                                     required_thrust_coefficient=None,
                                      show_plots=False,
                                      save_plots_dir: str = None) -> dict:
         """
@@ -80,6 +81,7 @@ class BladeElementModel:
         :param air_density: inflow air density [kg/m3]
         :param tip_speed_ratio: tip speed ratio [-]
         :param rotor_yaw: rotor yaw [deg]
+        :param required_thrust_coefficient: whether pitch should be adjusted to obtain a certain thrust coefficient.
         :param show_plots: display performance plots
         :param save_plots_dir: if specified, saves performance plots in this directory
         """
@@ -90,6 +92,9 @@ class BladeElementModel:
         self.rotor_yaw = rotor_yaw
         self.angular_velocity = tip_speed_ratio * free_stream_velocity / self.blade_span
 
+        dynamic_pressure = 0.5 * self.air_density * self.free_stream_velocity ** 2
+        disk_surface = np.pi * self.blade_span ** 2
+
         section_loadings = self.blade_sections.apply(
             lambda x: self._solve_stream_tube_for_blade_element(
                 section_start=x['section_start'],
@@ -98,9 +103,6 @@ class BladeElementModel:
             ),
             axis=1
         )
-
-        dynamic_pressure = 0.5 * self.air_density * self.free_stream_velocity ** 2
-        disk_surface = np.pi * self.blade_span ** 2
 
         rotor_thrust_coefficient = section_loadings['rotor_axial_force'].sum() / dynamic_pressure / disk_surface
         rotor_power_coefficient = (
@@ -111,13 +113,53 @@ class BladeElementModel:
             )
         ).sum()
 
+        # If required thrust is specified, do a few iterations of Newtons method to adjust pitch
+        if required_thrust_coefficient is not None:
+            n_iterations = 0
+
+            if required_thrust_coefficient > rotor_thrust_coefficient:
+                pitch_adjustment = 2
+            else:
+                pitch_adjustment = -2
+
+            while np.abs(required_thrust_coefficient - rotor_thrust_coefficient) > 0.005:
+                self.blade_pitch += pitch_adjustment
+
+                section_loadings = self.blade_sections.apply(
+                    lambda x: self._solve_stream_tube_for_blade_element(
+                        section_start=x['section_start'],
+                        twist=x['twist'],
+                        chord=x['chord']
+                    ),
+                    axis=1
+                )
+
+                thrust_coefficient_update = section_loadings['rotor_axial_force'].sum() / (
+                        dynamic_pressure * disk_surface)
+
+                thrust_coefficient_pitch_derivative = \
+                    (thrust_coefficient_update - rotor_thrust_coefficient) / pitch_adjustment
+
+                pitch_adjustment = - 1 * (
+                        thrust_coefficient_update - required_thrust_coefficient
+                ) / thrust_coefficient_pitch_derivative
+
+                rotor_thrust_coefficient = thrust_coefficient_update
+
+                n_iterations += 1
+                if n_iterations > 10:
+                    raise ValueError('Required thrust coefficient could not be achieved.')
+
         if save_plots_dir is not None:
             plt.savefig(f'{save_plots_dir}.png')
 
         if show_plots:
             plt.show()
 
-        return {'thrust_coefficient': rotor_thrust_coefficient, 'power_coefficient': rotor_power_coefficient}
+        return {'thrust_coefficient': rotor_thrust_coefficient,
+                'power_coefficient': rotor_power_coefficient,
+                'blade_pitch': self.blade_pitch,
+                'blade_section_loadings': section_loadings}
 
     def _solve_stream_tube_for_blade_element(self, section_start, twist, chord):
         """

@@ -82,7 +82,8 @@ if __name__ == '__main__':
         free_stream_velocity=10,
         tip_speed_ratio=8,
         rotor_yaw=0,
-        air_density=1
+        air_density=1,
+        required_thrust_coefficient=0.75
     )
 
     # debug_induction_factor_thrust_coefficient(blade_element_model)
