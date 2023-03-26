@@ -1,4 +1,4 @@
-from bem_v2 import BladeElementModel
+from bem import BladeElementModel
 import itertools
 import pandas as pd
 import numpy as np
@@ -44,7 +44,9 @@ if __name__ == '__main__':
 
     # for every combination of TSR and yaw angle: run performance calculations and append to results list
     for tip_speed_ratio, yaw_angle in itertools.product(tip_speed_ratios, yaw_angles):
-        power_coefficient, thrust_coefficient,section_loads = blade_element_model.run_performance_calculations(
+        # power_coefficient, thrust_coefficient,section_loads
+        
+        Calculations = blade_element_model.run_performance_calculations(
             free_stream_velocity=inflow_speed,
             tip_speed_ratio=tip_speed_ratio,
             rotor_yaw=yaw_angle,
@@ -54,6 +56,10 @@ if __name__ == '__main__':
             prandtl_flag1 = True
         )
         
+        power_coefficient = Calculations['power_coefficient']
+        thrust_coefficient = Calculations['thrust_coefficient']
+        section_loads = Calculations['blade_section_loadings']
+                
         Rotor_Torque = blade_element_model.blade_span*section_loads['rotor_tangential_force'].sum()  
         Rotor_Thrust = section_loads['rotor_axial_force'].sum()  
 
@@ -101,7 +107,7 @@ if __name__ == '__main__':
             airfoil_data=airfoil
             )
 
-            power_coefficient, thrust_coefficient , section_loads = blade_element_model.run_performance_calculations(
+            Calculations = blade_element_model.run_performance_calculations(
             free_stream_velocity=inflow_speed,
             tip_speed_ratio=tip_speed_ratio,
             rotor_yaw=yaw_angle,
@@ -110,6 +116,11 @@ if __name__ == '__main__':
             air_density=1.225,
             prandtl_flag1 = True
             )
+            
+            power_coefficient = Calculations['power_coefficient']
+            thrust_coefficient = Calculations['thrust_coefficient']
+            section_loads = Calculations['blade_section_loadings']
+            
             while abs(thrust_coefficient-0.75)>ct_tres:
                 multi=multi+eps
                 def chord_function(r, blade_span): return multi*(A-(r/blade_span)**(exponent))

@@ -73,7 +73,8 @@ class BladeElementModel:
                                      air_density: float = 1.225,
                                      required_thrust_coefficient=None,
                                      show_plots=False,
-                                     save_plots_dir: str = None) -> dict:
+                                     save_plots_dir: str = None,
+                                     prandtl_flag1 = True) -> dict:
         """
         Perform BEM calculations with given inflow conditions.
 
@@ -99,7 +100,8 @@ class BladeElementModel:
             lambda x: self._solve_stream_tube_for_blade_element(
                 section_start=x['section_start'],
                 twist=x['twist'],
-                chord=x['chord']
+                chord=x['chord'],
+                prandtl_flag = prandtl_flag1
             ),
             axis=1
         )
@@ -129,7 +131,8 @@ class BladeElementModel:
                     lambda x: self._solve_stream_tube_for_blade_element(
                         section_start=x['section_start'],
                         twist=x['twist'],
-                        chord=x['chord']
+                        chord=x['chord'],
+                        prandtl_flag = prandtl_flag1
                     ),
                     axis=1
                 )
@@ -161,7 +164,7 @@ class BladeElementModel:
                 'blade_pitch': self.blade_pitch,
                 'blade_section_loadings': section_loadings}
 
-    def _solve_stream_tube_for_blade_element(self, section_start, twist, chord):
+    def _solve_stream_tube_for_blade_element(self, section_start, twist, chord,prandtl_flag = True):
         """
         Solve balance of momentum between blade element load and loading in the stream tube.
 
@@ -186,7 +189,7 @@ class BladeElementModel:
             axial_velocity_rotor = self.free_stream_velocity * (1 - axial_induction_factor)
             tangential_velocity_rotor = (1 + tangential_induction_factor) * self.angular_velocity * section_start
 
-            blade_axial_force, blade_tangential_force, gamma = self._get_blade_element_loading(
+            blade_axial_force, blade_tangential_force, gamma, inflow_angle, alpha = self._get_blade_element_loading(
                 axial_velocity=axial_velocity_rotor,
                 tangential_velocity=tangential_velocity_rotor,
                 twist=twist,
@@ -200,6 +203,10 @@ class BladeElementModel:
             section_thrust_coefficient = rotor_axial_force / (
                     0.5 * self.air_density * stream_tube_area * self.free_stream_velocity ** 2
             )
+            
+            section_torque_coefficient = self.blade_span * rotor_tangential_force / (
+                    0.5 * self.air_density * stream_tube_area * self.free_stream_velocity ** 2
+            )
 
             # Update induction, accounting for Glauert's correction
             axial_induction_factor_update = self._calculate_induction_factor(section_thrust_coefficient)
@@ -209,6 +216,10 @@ class BladeElementModel:
                 location=section_start + self.section_thickness * 0.5,  # calculate correction @ section midpoint
                 axial_induction=axial_induction_factor_update
             )
+            
+            if prandtl_flag == False:
+                print('prandtl_flag is False')
+                prandtl_correction = 1.0
 
             axial_induction_factor_update = axial_induction_factor_update / prandtl_correction
 
@@ -238,7 +249,11 @@ class BladeElementModel:
                 'rotor_axial_force': rotor_axial_force,
                 'rotor_tangential_force': rotor_tangential_force,
                 'blade_axial_force': blade_axial_force,
-                'blade_tangential_force': blade_tangential_force
+                'blade_tangential_force': blade_tangential_force,
+                'Inflow_angle': inflow_angle,
+                'Alpha':alpha,
+                'section_thrust_coefficient': section_thrust_coefficient,
+                'section_torque_coefficient': section_torque_coefficient,
             }
 
         return pd.Series(result)
@@ -269,7 +284,7 @@ class BladeElementModel:
         tangential_force = lift * np.sin(inflow_angle) - drag * np.cos(inflow_angle)
         gamma = 0.5 * np.sqrt(velocity_squared) * lift_coefficient * chord
 
-        return axial_force, tangential_force, gamma
+        return axial_force, tangential_force, gamma, inflow_angle, alpha
 
     def _prandtl_tip_root_correction(self, location, axial_induction, return_all=False):
         """
@@ -341,3 +356,84 @@ class BladeElementModel:
         a[ct < ct2] = 0.5 - 0.5 * np.sqrt(1 - ct[ct < ct2])
 
         return a
+        
+    @staticmethod
+    def _plot_alphaVSr_R(r_R,Alpha):
+        plt.figure(figsize=(12, 6))
+        plt.title('Alpha vs r/R')
+        plt.plot(r_R,Alpha)
+        plt.grid()
+        plt.xlabel('r/R')
+        plt.ylabel('Alpha (deg)')
+        plt.show()
+        plt.savefig("Alpha vs r_R.jpg", bbox_inches='tight')
+        plt.close('all')
+        
+    @staticmethod
+    def _plot_InflowVSr_R(r_R,Inflow):
+        plt.figure(figsize=(12, 6))
+        plt.title('Inflow Angle vs r/R')
+        plt.plot(r_R,Inflow)
+        plt.grid()
+        plt.xlabel('r/R')
+        plt.ylabel('Inflow (deg)')
+        plt.show()
+        plt.savefig("Inflow Angle vs r_R.jpg", bbox_inches='tight')
+        plt.close('all')
+        
+    @staticmethod
+    def _plot_Axial_Azmth_InductionVSr_R(r_R,a,a_dash):
+        plt.figure(figsize=(12, 6))
+        plt.title('Axial Azimuthal Induction vs r/R')
+        plt.plot(r_R,a,label = 'a')
+        plt.plot(r_R,a_dash,label = r'$a^,$')
+        plt.grid()
+        plt.xlabel('r/R')
+        #plt.ylabel('a')
+        plt.legend()
+        plt.show()
+        plt.savefig("Axial Azimuthal Induction vs r_R.jpg", bbox_inches='tight')
+        plt.close('all')
+        
+    @staticmethod
+    def _plot_Ct_CqVSr_R(r_R,Ct,Cq):
+        Ct[0] = 0.0
+        Cq[0] = 0.0
+        plt.figure(figsize=(12, 6))
+        plt.title('Axial Azimuthal coefficients vs r/R')
+        plt.plot(r_R,Ct, label = r'$C_T$')
+        plt.plot(r_R,Cq, label = r'$C_Q$')
+        plt.grid()
+        plt.xlabel('r/R')
+        #plt.ylabel('Ct')
+        plt.legend()
+        plt.show()
+        plt.savefig("Axial Azimuthal coefficients vs r_R.jpg", bbox_inches='tight')
+        plt.close('all')
+        
+    @staticmethod
+    def _plot_RotorThrustVSTipSpeedRatio(tip_speed_ratios,Rotor_Thrust):
+        plt.figure(figsize=(12, 6))
+        plt.title('Rotor Thrust vs Tip Speed Ratio')
+        plt.plot(tip_speed_ratios,Rotor_Thrust)
+       # plt.plot(r_R,Cq, label = r'$C_Q$')
+        plt.grid()
+        plt.xlabel('Tip Speed Ratio')
+        plt.ylabel('Thrust (N)')
+        # plt.legend()
+        plt.show()
+        plt.savefig("Rotor Thrust vs Tip Speed Ratio.jpg", bbox_inches='tight')
+        plt.close('all')
+    @staticmethod
+    def _plot_RotorTorqueVSTipSpeedRatio(tip_speed_ratios,Rotor_Torque):
+        plt.figure(figsize=(12, 6))
+        plt.title('Rotor Torque vs Tip Speed Ratio')
+        plt.plot(tip_speed_ratios,Rotor_Torque)
+       # plt.plot(r_R,Cq, label = r'$C_Q$')
+        plt.grid()
+        plt.xlabel('Tip Speed Ratio')
+        plt.ylabel('Torque (N.m)')
+        # plt.legend()
+        plt.show()
+        plt.savefig("Rotor Torque vs Tip Speed Ratio.jpg", bbox_inches='tight')
+        plt.close('all')   
