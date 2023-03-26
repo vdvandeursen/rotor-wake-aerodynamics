@@ -150,9 +150,8 @@ class BladeElementModel:
                 rotor_thrust_coefficient = thrust_coefficient_update
 
                 n_iterations += 1
-                if n_iterations > 20:
-                    print('Required thrust coefficient could not be achieved.')
-                    break
+                if n_iterations > 10:
+                    raise ValueError('Required thrust coefficient could not be achieved.')
 
         if save_plots_dir is not None:
             plt.savefig(f'{save_plots_dir}.png')
@@ -176,12 +175,12 @@ class BladeElementModel:
         stream_tube_area = np.pi * ((section_start + self.section_thickness) ** 2 - section_start ** 2)
 
         # initialize variables
-        axial_induction_factor = 0.3  # axial induction
+        axial_induction_factor = 0  # axial induction
         tangential_induction_factor = 0  # tangential induction factor
 
-        error_threshold = 0.001  # error limit for iteration process, in absolute value of induction
+        error_threshold = 0.0001  # error limit for iteration process, in absolute value of induction
         iteration_error = np.inf
-        iteration_limit = 10e4
+        iteration_limit = 10e3
 
         result = None
 
@@ -239,7 +238,7 @@ class BladeElementModel:
             iteration_limit -= 1
 
             if iteration_limit < 0:
-                raise RuntimeError(f'Iteration threshold reached - no convergence obtained.')
+                raise ValueError(f'Iteration threshold reached - no convergence obtained.')
 
             axial_induction_factor = axial_induction_factor_update
             tangential_induction_factor = tangential_induction_factor_update
@@ -303,19 +302,13 @@ class BladeElementModel:
             self.blade_number * np.sqrt(self.tip_speed_ratio ** 2 + (1 - axial_induction)**2)
         )
 
-        try:
-            tip_correction = 2 / np.pi * np.arccos(
-                np.exp(-np.pi * (1 - location / self.blade_span) / d)
-            )
-        except FloatingPointError:
-            tip_correction = 0
+        tip_correction = 2 / np.pi * np.arccos(
+            np.exp(-np.pi * (1 - location / self.blade_span) / d)
+        )
 
-        try:
-            root_correction = 2 / np.pi * np.arccos(
-                np.exp(-np.pi * ((location - self.blade_start) / self.blade_span) / d)
-            )
-        except FloatingPointError:
-            root_correction = 0
+        root_correction = 2 / np.pi * np.arccos(
+            np.exp(-np.pi * ((location - self.blade_start) / self.blade_span) / d)
+        )
 
         if np.isnan(tip_correction):
             tip_correction = 0

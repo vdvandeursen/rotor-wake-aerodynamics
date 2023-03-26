@@ -76,7 +76,7 @@ if __name__ == '__main__':
     performance_df = pd.DataFrame(results)
 
     print(performance_df)
-    if True:
+    if False:
         results = []
 
         #exponents=[0.005,0.02,0.05,0.1,0.2,0.6,0.7,0.75,0.8,0.85,0.9,0.95,1,1.05,1.1,1.15,1.2,1.25,1.3,1.35,1.4,1.5,1.6,1.8,2,4,8,16,32,64,128]
