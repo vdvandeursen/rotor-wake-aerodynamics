@@ -79,7 +79,8 @@ class BladeElementModel:
                                      rotor_yaw: float,
                                      air_density: float = 1.225,
                                      show_plots=False,
-                                     save_plots_dir: str = None) -> tuple:
+                                     save_plots_dir: str = None,
+                                     prandtl_flag1 = True) -> tuple:
         """
         Perform BEM calculations with given inflow conditions.
 
@@ -104,7 +105,7 @@ class BladeElementModel:
                 section_start=x['section_start'],
                 twist=x['twist'],
                 chord=x['chord'], 
-                prandtl_flag = False
+                prandtl_flag = prandtl_flag1
             ),
             axis=1
         )
@@ -378,7 +379,7 @@ class BladeElementModel:
         plt.plot(tip_speed_ratios,Rotor_Thrust)
        # plt.plot(r_R,Cq, label = r'$C_Q$')
         plt.grid()
-        plt.xlabel('r/R')
+        plt.xlabel('Tip Speed Ratio')
         plt.ylabel('Thrust (N)')
         # plt.legend()
         plt.show()
@@ -391,7 +392,7 @@ class BladeElementModel:
         plt.plot(tip_speed_ratios,Rotor_Torque)
        # plt.plot(r_R,Cq, label = r'$C_Q$')
         plt.grid()
-        plt.xlabel('r/R')
+        plt.xlabel('Tip Speed Ratio')
         plt.ylabel('Torque (N.m)')
         # plt.legend()
         plt.show()

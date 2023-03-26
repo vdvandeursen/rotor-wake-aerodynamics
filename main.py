@@ -1,6 +1,7 @@
 from bem_v2 import BladeElementModel
 import itertools
 import pandas as pd
+import numpy as np
 
 
 """
@@ -19,7 +20,7 @@ if __name__ == '__main__':
     airfoil = pd.read_csv('DU95W180.csv', names=col_names)
 
     inflow_speed = 10
-    tip_speed_ratios =[ 6, 7, 8, 9, 10]
+    tip_speed_ratios = np.arange(6.0,10.1,0.1)
     yaw_angles = [0] #, 15, 30]
 
 
@@ -49,7 +50,8 @@ if __name__ == '__main__':
             rotor_yaw=yaw_angle,
             show_plots=False,
             # save_plots_dir='./plots'
-            air_density=1.225
+            air_density=1.225,
+            prandtl_flag1 = True
         )
         
         Rotor_Torque = blade_element_model.blade_span*section_loads['rotor_tangential_force'].sum()  
@@ -105,7 +107,8 @@ if __name__ == '__main__':
             rotor_yaw=yaw_angle,
             show_plots=True,
             # save_plots_dir='./plots'
-            air_density=1.225
+            air_density=1.225,
+            prandtl_flag1 = True
             )
             while abs(thrust_coefficient-0.75)>ct_tres:
                 multi=multi+eps
