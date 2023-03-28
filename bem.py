@@ -5,7 +5,7 @@ import matplotlib.pyplot as plt
 from typing import Union, Callable
 
 number_of_annuli = 200
-
+np.seterr('ignore')
 
 class BladeElementModel:
     def __init__(self,
@@ -16,6 +16,7 @@ class BladeElementModel:
                  airfoil_data: pd.DataFrame,
                  twist: Union[npt.ArrayLike, Callable],
                  chord: Union[npt.ArrayLike, Callable],
+                 section_starts=None
                  ):
         """
         Creates BladeElementModel instance. Initiates model configuration with inflow conditions and blade geometry.
@@ -42,7 +43,8 @@ class BladeElementModel:
             chord_distribution = chord(section_starts, blade_span)
 
         elif len(twist) == len(chord):
-            section_starts = np.linspace(blade_start, blade_span, len(twist), endpoint=False)
+            if section_starts is None:
+                section_starts = np.linspace(blade_start, blade_span, len(twist), endpoint=False)
             twist_distribution = twist
             chord_distribution = chord
 
@@ -50,21 +52,29 @@ class BladeElementModel:
             raise ValueError('Twist and chord must either both be specified as functions or as arrays of equal length.')
 
         # define blade sections as a pandas DataFrame - allows for easier calculations later on.
+
+        section_ends = np.roll(section_starts, -1)
+        section_ends[-1] = blade_span
+
+        section_thicknesses = section_ends - section_starts
+
         self.blade_sections = pd.DataFrame(
             {
                 'section_start': section_starts,
+                'section_thickness': section_thicknesses,
                 'twist': twist_distribution,
                 'chord': chord_distribution
             }
         )
 
-        self.section_thickness = section_starts[1] - section_starts[0]  # annulus thickness
+        # self.section_thickness = section_starts[1] - section_starts[0]  # annulus thickness
 
         self.free_stream_velocity = None
         self.air_density = None
         self.tip_speed_ratio = None
         self.rotor_yaw = None
         self.angular_velocity = None
+        self.prandtl = False
 
     def run_performance_calculations(self,
                                      free_stream_velocity: float,
@@ -74,7 +84,7 @@ class BladeElementModel:
                                      required_thrust_coefficient=None,
                                      show_plots=False,
                                      save_plots_dir: str = None,
-                                     prandtl_flag1 = True) -> dict:
+                                     prandtl=True) -> dict:
         """
         Perform BEM calculations with given inflow conditions.
 
@@ -83,8 +93,9 @@ class BladeElementModel:
         :param tip_speed_ratio: tip speed ratio [-]
         :param rotor_yaw: rotor yaw [deg]
         :param required_thrust_coefficient: whether pitch should be adjusted to obtain a certain thrust coefficient.
-        :param show_plots: display performance plots
-        :param save_plots_dir: if specified, saves performance plots in this directory
+        :param show_plots: display performance plots (not implemented)
+        :param save_plots_dir: if specified, saves performance plots in this directory (not implemented)
+        :param prandtl: if False, ignore Prandtl correction.
         """
 
         self.free_stream_velocity = free_stream_velocity
@@ -92,6 +103,8 @@ class BladeElementModel:
         self.tip_speed_ratio = tip_speed_ratio
         self.rotor_yaw = rotor_yaw
         self.angular_velocity = tip_speed_ratio * free_stream_velocity / self.blade_span
+
+        self.prandtl = prandtl
 
         dynamic_pressure = 0.5 * self.air_density * self.free_stream_velocity ** 2
         disk_surface = np.pi * self.blade_span ** 2
@@ -101,7 +114,7 @@ class BladeElementModel:
                 section_start=x['section_start'],
                 twist=x['twist'],
                 chord=x['chord'],
-                prandtl_flag = prandtl_flag1
+                section_thickness=x['section_thickness']
             ),
             axis=1
         )
@@ -132,7 +145,7 @@ class BladeElementModel:
                         section_start=x['section_start'],
                         twist=x['twist'],
                         chord=x['chord'],
-                        prandtl_flag = prandtl_flag1
+                        section_thickness=x['section_thickness']
                     ),
                     axis=1
                 )
@@ -164,7 +177,7 @@ class BladeElementModel:
                 'blade_pitch': self.blade_pitch,
                 'blade_section_loadings': section_loadings}
 
-    def _solve_stream_tube_for_blade_element(self, section_start, twist, chord,prandtl_flag = True):
+    def _solve_stream_tube_for_blade_element(self, section_start, section_thickness, twist, chord):
         """
         Solve balance of momentum between blade element load and loading in the stream tube.
 
@@ -172,13 +185,13 @@ class BladeElementModel:
         :param twist: section twist angle [deg]
         :param chord: section chord length [m]
         """
-        stream_tube_area = np.pi * ((section_start + self.section_thickness) ** 2 - section_start ** 2)
+        stream_tube_area = np.pi * ((section_start + section_thickness) ** 2 - section_start ** 2)
 
         # initialize variables
-        axial_induction_factor = 0  # axial induction
+        axial_induction_factor = 0.3  # axial induction
         tangential_induction_factor = 0  # tangential induction factor
 
-        error_threshold = 0.0001  # error limit for iteration process, in absolute value of induction
+        error_threshold = 0.001  # error limit for iteration process, in absolute value of induction
         iteration_error = np.inf
         iteration_limit = 10e3
 
@@ -196,8 +209,8 @@ class BladeElementModel:
                 chord=chord
             )  # N/m
 
-            rotor_axial_force = self.blade_number * blade_axial_force * self.section_thickness  # N
-            rotor_tangential_force = self.blade_number * blade_tangential_force * self.section_thickness  # N
+            rotor_axial_force = self.blade_number * blade_axial_force * section_thickness  # N
+            rotor_tangential_force = self.blade_number * blade_tangential_force * section_thickness  # N
 
             # Update estimation for induction factors
             section_thrust_coefficient = rotor_axial_force / (
@@ -213,18 +226,18 @@ class BladeElementModel:
 
             # correct new axial induction with Prandtl's correction
             prandtl_correction = self._prandtl_tip_root_correction(
-                location=section_start + self.section_thickness * 0.5,  # calculate correction @ section midpoint
+                location=section_start + section_thickness * 0.5,  # calculate correction @ section midpoint
                 axial_induction=axial_induction_factor_update
             )
             
-            if prandtl_flag == False:
-                print('prandtl_flag is False')
+            if not self.prandtl:
+                print('Ignoring Prandtl')
                 prandtl_correction = 1.0
 
             axial_induction_factor_update = axial_induction_factor_update / prandtl_correction
 
             # for improving convergence, weigh current and previous iteration of axial induction
-            axial_induction_factor_update = 0.75 * axial_induction_factor + 0.25 * axial_induction_factor_update
+            axial_induction_factor_update = 0.9 * axial_induction_factor + 0.1 * axial_induction_factor_update
 
             # update estimate for tangential induction factor (and correcting w/ Prandtl)
             tangential_induction_factor_update = blade_tangential_force * self.blade_number / (
@@ -302,17 +315,18 @@ class BladeElementModel:
             self.blade_number * np.sqrt(self.tip_speed_ratio ** 2 + (1 - axial_induction)**2)
         )
 
-        tip_correction = 2 / np.pi * np.arccos(
-            np.exp(-np.pi * (1 - location / self.blade_span) / d)
-        )
-
-        root_correction = 2 / np.pi * np.arccos(
-            np.exp(-np.pi * ((location - self.blade_start) / self.blade_span) / d)
-        )
-
-        if np.isnan(tip_correction):
+        try:
+            tip_correction = 2 / np.pi * np.arccos(
+                np.exp(-np.pi * (1 - location / self.blade_span) / d)
+            )
+        except FloatingPointError:
             tip_correction = 0
-        if np.isnan(root_correction):
+
+        try:
+            root_correction = 2 / np.pi * np.arccos(
+                np.exp(-np.pi * ((location - self.blade_start) / self.blade_span) / d)
+            )
+        except FloatingPointError:
             root_correction = 0
 
         prandtl_correction = tip_correction * root_correction

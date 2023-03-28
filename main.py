@@ -53,7 +53,7 @@ if __name__ == '__main__':
             show_plots=False,
             # save_plots_dir='./plots'
             air_density=1.225,
-            prandtl_flag1 = True
+            prandtl= True
         )
         
         power_coefficient = Calculations['power_coefficient']
@@ -114,7 +114,7 @@ if __name__ == '__main__':
             show_plots=True,
             # save_plots_dir='./plots'
             air_density=1.225,
-            prandtl_flag1 = True
+            prandtl= True
             )
             
             power_coefficient = Calculations['power_coefficient']
