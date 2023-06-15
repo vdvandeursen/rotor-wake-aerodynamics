@@ -4,7 +4,7 @@ import numpy.typing as npt
 import matplotlib.pyplot as plt
 from typing import Union, Callable
 
-number_of_annuli = 200
+number_of_annuli = 100
 np.seterr('ignore')
 
 class BladeElementModel:
