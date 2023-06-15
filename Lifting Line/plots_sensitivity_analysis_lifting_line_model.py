@@ -11,9 +11,8 @@ import matplotlib.pyplot as plt
 from lifting_line_model_functions import create_rotor_geometry, solve_lifting_line_system_matrix_approach,changewakeconvectionspeedplot
 
 
-def return_lift_solution(NELEMENTS, Nrotations, Rotation_resolution):
+def return_lift_solution(NELEMENTS, Nrotations, Rotation_resolution, aw):
     # Generate normal wake geometry (control wake length and the element number and convection of the wake)
-    aw = 0.0
     TSR = 6
 
     s_Array = np.linspace(0, np.pi, NELEMENTS)
@@ -52,6 +51,7 @@ length=6*scale
 labelFontsize=16
 axlabelsize=16
 
+aw = 0.0
 NELEMENTS = 10
 Nrotations = 25
 Rotation_resolution = 20
@@ -65,7 +65,8 @@ for n in elements:
     lift_solution, nonDimGamma, nonDimForce = return_lift_solution(
         NELEMENTS=n,
         Nrotations=Nrotations,
-        Rotation_resolution=Rotation_resolution
+        Rotation_resolution=Rotation_resolution,
+        aw=aw
     )
 
     plt.plot(
@@ -93,7 +94,8 @@ for n in rotations:
     lift_solution, nonDimGamma, nonDimForce = return_lift_solution(
         NELEMENTS=NELEMENTS,
         Nrotations=n,
-        Rotation_resolution=Rotation_resolution
+        Rotation_resolution=Rotation_resolution,
+        aw=aw
     )
 
     plt.plot(
@@ -111,3 +113,31 @@ plt.legend(fontsize=labelFontsize)
 plt.savefig('SENS_ANALYSIS_a vs r_R varying rotations.png', dpi=600, bbox_inches='tight')
 # plt.close()
 
+
+# Plot 'a vs r_R' for varying number of rotations
+plt.figure(figsize=(width,length))
+plt.grid(axis='both')
+wake_convections = [0, 0.3, 0.6, 0.9]
+
+for n in wake_convections:
+    lift_solution, nonDimGamma, nonDimForce = return_lift_solution(
+        NELEMENTS=NELEMENTS,
+        Nrotations=Nrotations,
+        Rotation_resolution=Rotation_resolution,
+        aw=n
+    )
+
+    plt.plot(
+        lift_solution['r_R'],
+        lift_solution['a'],
+        linestyle='-',
+        alpha=1,
+        label=f'wake convection = {n}'
+    )
+
+plt.ylabel('a',fontsize=labelFontsize)
+plt.xlabel('r_R',fontsize=labelFontsize)
+plt.tick_params(axis='both', which='both', labelsize=axlabelsize)
+plt.legend(fontsize=labelFontsize)
+plt.savefig('SENS_ANALYSIS_a vs r_R varying wake convection.png', dpi=600, bbox_inches='tight')
+# plt.close()
