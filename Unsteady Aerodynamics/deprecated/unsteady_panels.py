@@ -3,8 +3,6 @@ import numpy as np
 import matplotlib.pyplot as plt
 from plotting_functions import plot_velocity_pressure_fields
 
-# Code based on the fortran code in Low Speed Aerodynamics by Katz and Plotkin (Program 15)
-
 
 class UnsteadyModel:
     def __init__(self):
@@ -57,8 +55,6 @@ class UnsteadyModel:
 
         CL_ratio = []
         T_plot = []
-        Cl_list =[]
-        Omega_list=[]
 
         alpha = np.radians(alpha)
         sine = math.sin(alpha)
@@ -70,7 +66,7 @@ class UnsteadyModel:
             time = time + dt
             amp = np.radians(amplitude)
             Omega = amp * math.sin(omega * time) + alpha
-            Omega_dot = amp * omega * math.cos(omega * time)*0
+            Omega_dot = amp * omega * math.cos(omega * time)
             sine = math.sin(Omega)
             cosine = math.cos(Omega)
 
@@ -189,9 +185,6 @@ class UnsteadyModel:
 
             CL_ratio.append(CL / ((Omega) * 2 * math.pi))
             T_plot.append(self.U_inf * time / self.chord)
-            Cl_list.append(CL)
-            Omega_list.append(Omega)
-
 
             if printing:
                 print(
@@ -237,7 +230,7 @@ class UnsteadyModel:
             # plt.show()
 
             plt.close()
-        return CL,Cl_list, T_plot, Omega_list
+        return CL
 
     def DWASH(self, X, Z, I1, I2):
         U = 0.0
